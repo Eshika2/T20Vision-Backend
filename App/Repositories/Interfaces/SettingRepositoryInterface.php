@@ -1,0 +1,12 @@
+<?php
+
+namespace App\Repositories\Interfaces;
+
+
+interface SettingRepositoryInterface
+{
+    public function encryptText($data);
+    public function decryptText($data);
+
+    public function winPrediction(array $data);
+}

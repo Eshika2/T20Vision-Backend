@@ -2,6 +2,7 @@
 
 //use Illuminate\Http\Request;
 
+use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 
@@ -18,6 +19,9 @@ Route::middleware('check.app.version')->group(function () {
     Route::group(['middleware' => ['jwt.verify']], function () {
         Route::post('auth/user', [UserController::class, 'userData']);
         Route::post('/logout', [UserController::class, 'logout']);
+
+        Route::post('prediction/win', [SettingController::class, 'winPrediction']);
+
 
     });
 });
