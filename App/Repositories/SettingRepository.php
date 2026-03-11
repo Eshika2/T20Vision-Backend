@@ -5,6 +5,9 @@ namespace App\Repositories;
 use App\Repositories\Interfaces\SettingRepositoryInterface;
 use Illuminate\Support\Facades\Log; // Import Log facade at the top
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
+use App\Models\TeamRecommendation;
+use App\Models\TeamRecommendationPlayer;
 use App\Models\WinPrediction;
 use App\Models\ScorePrediction;
 
@@ -63,7 +66,7 @@ class SettingRepository implements SettingRepositoryInterface
         return $randomString;
     }
     
-    public function winPrediction(array $data) {
+    public function winPrediction (array $data) {
         try {
             $user_id = isset($data['user_id']) ? intval($data['user_id']) : 0;
             $batting_team = isset($data['batting_team']) ? trim($data['batting_team']) : null;
@@ -149,7 +152,7 @@ class SettingRepository implements SettingRepositoryInterface
 
         return $output;
     }
-    public function scorePrediction(array $data) {
+    public function scorePrediction (array $data) {
         try {
             $user_id = isset($data['user_id']) ? intval($data['user_id']) : 0;
             $batting_team = isset($data['batting_team']) ? trim($data['batting_team']) : null;
@@ -223,6 +226,143 @@ class SettingRepository implements SettingRepositoryInterface
                 $output['status'] = 200;
             }
         } catch (\Exception $e) {
+            $url = isset($data['url']) ? $data['url'] : null;
+            $error_message = $e->getMessage();
+            $this->logError($url, $error_message);
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $output['status'] = 500;
+        }
+
+        return $output;
+    }
+    public function teamRecommendation (array $data) {
+        try {
+            $user_id = isset($data['user_id']) ? intval($data['user_id']) : 0;
+            $my_team = isset($data['my_team']) ? trim($data['my_team']) : null;
+            $opponent_team = isset($data['opponent_team']) ? trim($data['opponent_team']) : null;
+            $venue = isset($data['venue']) ? trim($data['venue']) : null;
+            $batters = isset($data['batters']) ? intval($data['batters']) : 5;
+            $bowlers = isset($data['bowlers']) ? intval($data['bowlers']) : 3;
+            $allrounders = isset($data['allrounders']) ? intval($data['allrounders']) : 3;
+            $start_year = isset($data['start_year']) ? intval($data['start_year']) : 2023;
+            $end_year = isset($data['end_year']) ? intval($data['end_year']) : 2026;
+
+            if ($batters + $bowlers + $allrounders != 11) {
+                $output['success'] = false;
+                $output['message'] = "Total players should be 11.";
+                $output['data'] = null;
+                $output['status'] = 400;
+                return $output;
+            }
+
+            $response = Http::timeout(120)->post(env('PYTHON_ML_API_URL') . '/api/team/recommend', [
+                'my_team' => $my_team,
+                'opponent_team' => $opponent_team,
+                'venue' => $venue,
+                'batters' => $batters,
+                'bowlers' => $bowlers,
+                'allrounders' => $allrounders,
+                'start_year' => $start_year,
+                'end_year' => $end_year,
+            ]);
+
+            $result = $response->json();
+
+            if (!$response->successful() || isset($result['error'])) {
+                $recommendation = TeamRecommendation::create([
+                    'user_id' => $user_id,
+                    'my_team' => $my_team,
+                    'opponent_team' => $opponent_team,
+                    'venue' => $venue,
+                    'batters' => $batters,
+                    'bowlers' => $bowlers,
+                    'allrounders' => $allrounders,
+                    'start_year' => $start_year,
+                    'end_year' => $end_year,
+                    'overall_rows' => isset($result['context_info']['overall_rows']) ? $result['context_info']['overall_rows'] : null,
+                    'opponent_rows' => isset($result['context_info']['opponent_rows']) ? $result['context_info']['opponent_rows'] : null,
+                    'venue_rows' => isset($result['context_info']['venue_rows']) ? $result['context_info']['venue_rows'] : null,
+                    'exact_rows' => isset($result['context_info']['exact_rows']) ? $result['context_info']['exact_rows'] : null,
+                    'status' => 0,
+                    'message' => isset($result['error']) ? $result['error'] : 'Recommendation failed',
+                ]);
+
+                $output['success'] = false;
+                $output['message'] = isset($result['error']) ? $result['error'] : 'Recommendation failed';
+                $output['data'] = null;
+                $output['status'] = 400;
+            } else {
+                DB::beginTransaction();
+
+                $recommendation = TeamRecommendation::create([
+                    'user_id' => $user_id,
+                    'my_team' => $my_team,
+                    'opponent_team' => $opponent_team,
+                    'venue' => $venue,
+                    'batters' => $batters,
+                    'bowlers' => $bowlers,
+                    'allrounders' => $allrounders,
+                    'start_year' => $start_year,
+                    'end_year' => $end_year,
+                    'available_players' => isset($result['available_players']) ? $result['available_players'] : null,
+                    'overall_rows' => isset($result['context_info']['overall_rows']) ? $result['context_info']['overall_rows'] : null,
+                    'opponent_rows' => isset($result['context_info']['opponent_rows']) ? $result['context_info']['opponent_rows'] : null,
+                    'venue_rows' => isset($result['context_info']['venue_rows']) ? $result['context_info']['venue_rows'] : null,
+                    'exact_rows' => isset($result['context_info']['exact_rows']) ? $result['context_info']['exact_rows'] : null,
+                    'status' => 1,
+                    'message' => 'Success',
+                ]);
+
+                $players_output = [];
+
+                if (isset($result['recommended_team']) && is_array($result['recommended_team'])) {
+                    foreach ($result['recommended_team'] as $player) {
+                        $new_player = TeamRecommendationPlayer::create([
+                            'team_recommendation_id' => $recommendation->id,
+                            'player_name' => isset($player['player']) ? $player['player'] : null,
+                            'role' => isset($player['role']) ? $player['role'] : null,
+                            'reward' => isset($player['reward']) ? $player['reward'] : null,
+                        ]);
+
+                        $players_output[] = [
+                            'player' => $new_player->player_name,
+                            'role' => $new_player->role,
+                            'reward' => $new_player->reward,
+                        ];
+                    }
+                }
+
+                DB::commit();
+
+                $output['success'] = true;
+                $output['message'] = "Success";
+                $output['data'] = [
+                    'id' => $recommendation->id,
+                    'my_team' => $recommendation->my_team,
+                    'opponent_team' => $recommendation->opponent_team,
+                    'venue' => $recommendation->venue,
+                    'batters' => $recommendation->batters,
+                    'bowlers' => $recommendation->bowlers,
+                    'allrounders' => $recommendation->allrounders,
+                    'start_year' => $recommendation->start_year,
+                    'end_year' => $recommendation->end_year,
+                    'available_players' => $recommendation->available_players,
+                    'context_info' => [
+                        'overall_rows' => $recommendation->overall_rows,
+                        'opponent_rows' => $recommendation->opponent_rows,
+                        'venue_rows' => $recommendation->venue_rows,
+                        'exact_rows' => $recommendation->exact_rows,
+                    ],
+                    'recommended_team' => $players_output,
+                ];
+                $output['status'] = 200;
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+
             $url = isset($data['url']) ? $data['url'] : null;
             $error_message = $e->getMessage();
             $this->logError($url, $error_message);

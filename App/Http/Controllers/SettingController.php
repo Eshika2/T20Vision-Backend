@@ -24,7 +24,7 @@ class SettingController extends Controller
         ]);
     }
 
-    public function winPrediction(Request $request) {
+    public function winPrediction (Request $request) {
         try {
             $validator = Validator::make($request->all(), [
                 'batting_team' => 'required|string|max:100',
@@ -70,7 +70,7 @@ class SettingController extends Controller
             'output' => $output['data']
         ], $status);
     }
-    public function scorePrediction(Request $request) {
+    public function scorePrediction (Request $request) {
         try {
             $validator = Validator::make($request->all(), [
                 'batting_team' => 'required|string|max:100',
@@ -116,5 +116,51 @@ class SettingController extends Controller
             'output' => $output['data']
         ], $status);
     }
+    public function teamRecommendation (Request $request) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'my_team' => 'required|string|max:100',
+                'opponent_team' => 'required|string|max:100|different:my_team',
+                'venue' => 'required|string|max:255',
+                'batters' => 'nullable|integer|min:0|max:11',
+                'bowlers' => 'nullable|integer|min:0|max:11',
+                'allrounders' => 'nullable|integer|min:0|max:11',
+                'start_year' => 'nullable|integer|digits:4',
+                'end_year' => 'nullable|integer|digits:4',
+            ]);
 
+            if ($validator->fails()) {
+                $output['success'] = false;
+                $output['message'] = $validator->errors()->first();
+                $output['data'] = null;
+                $status = 422;
+            } else {
+                $data = json_decode($request->getContent(), true);
+                $data['url'] = $request->url();
+                $data['user_id'] = Auth::user()->id;
+
+                $out_data = $this->settingRepository->teamRecommendation($data);
+
+                $output['success'] = $out_data['success'];
+                $output['message'] = $out_data['message'];
+                $output['data'] = $out_data['data'];
+                $status = $out_data['status'];
+            }
+        } catch (\Exception $e) {
+            $url = $request->url();
+            $error_message = $e->getMessage();
+            $this->logError($url, $error_message);
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $status = 500;
+        }
+
+        return response()->json([
+            'success' => $output['success'],
+            'message' => $output['message'],
+            'output' => $output['data']
+        ], $status);
+    }
 }

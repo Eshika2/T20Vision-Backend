@@ -22,6 +22,8 @@ Route::middleware('check.app.version')->group(function () {
 
         Route::post('prediction/win', [SettingController::class, 'winPrediction']);
         Route::post('prediction/score', [SettingController::class, 'scorePrediction']);
+        Route::post('prediction/team', [SettingController::class, 'teamRecommendation']);
+
 
     });
 });
