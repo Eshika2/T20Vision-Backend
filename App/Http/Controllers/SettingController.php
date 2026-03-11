@@ -70,6 +70,51 @@ class SettingController extends Controller
             'output' => $output['data']
         ], $status);
     }
+    public function scorePrediction(Request $request) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'batting_team' => 'required|string|max:100',
+                'bowling_team' => 'required|string|max:100|different:batting_team',
+                'venue' => 'required|string|max:255',
+                'current_score' => 'required|integer|min:0',
+                'wickets_lost' => 'required|integer|min:0|max:10',
+                'balls_remaining' => 'required|integer|min:0|max:120',
+                'last_five' => 'required|integer|min:0',
+            ]);
 
+            if ($validator->fails()) {
+                $output['success'] = false;
+                $output['message'] = $validator->errors()->first();
+                $output['data'] = null;
+                $status = 422;
+            } else {
+                $data = json_decode($request->getContent(), true);
+                $data['url'] = $request->url();
+                $data['user_id'] = Auth::user()->id;
+
+                $out_data = $this->settingRepository->scorePrediction($data);
+
+                $output['success'] = $out_data['success'];
+                $output['message'] = $out_data['message'];
+                $output['data'] = $out_data['data'];
+                $status = $out_data['status'];
+            }
+        } catch (\Exception $e) {
+            $url = $request->url();
+            $error_message = $e->getMessage();
+            $this->logError($url, $error_message);
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $status = 500;
+        }
+
+        return response()->json([
+            'success' => $output['success'],
+            'message' => $output['message'],
+            'output' => $output['data']
+        ], $status);
+    }
 
 }

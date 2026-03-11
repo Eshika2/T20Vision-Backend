@@ -9,4 +9,5 @@ interface SettingRepositoryInterface
     public function decryptText($data);
 
     public function winPrediction(array $data);
+    public function scorePrediction(array $data);
 }

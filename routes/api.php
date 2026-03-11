@@ -21,7 +21,7 @@ Route::middleware('check.app.version')->group(function () {
         Route::post('/logout', [UserController::class, 'logout']);
 
         Route::post('prediction/win', [SettingController::class, 'winPrediction']);
-
+        Route::post('prediction/score', [SettingController::class, 'scorePrediction']);
 
     });
 });

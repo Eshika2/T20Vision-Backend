@@ -468,7 +468,7 @@ class UserRepository implements UserRepositoryInterface
 
                 Mail::send('emails.otp', ['otp' => $otp], function ($message) use ($email_address) {
                     $message->to($email_address);
-                    $message->subject('Your OTP Code - Ecom Dashboard');
+                    $message->subject('Your OTP Code - T20Vision');
                 });
 
                 $output['success'] = true;

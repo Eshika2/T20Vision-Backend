@@ -6,6 +6,7 @@ use App\Repositories\Interfaces\SettingRepositoryInterface;
 use Illuminate\Support\Facades\Log; // Import Log facade at the top
 use Illuminate\Support\Facades\Http;
 use App\Models\WinPrediction;
+use App\Models\ScorePrediction;
 
 class SettingRepository implements SettingRepositoryInterface
 {
@@ -61,6 +62,7 @@ class SettingRepository implements SettingRepositoryInterface
         }
         return $randomString;
     }
+    
     public function winPrediction(array $data) {
         try {
             $user_id = isset($data['user_id']) ? intval($data['user_id']) : 0;
@@ -131,6 +133,92 @@ class SettingRepository implements SettingRepositoryInterface
                     'wickets_out' => $wickets_out,
                     'batting_win_probability' => $prediction->batting_win_probability,
                     'bowling_win_probability' => $prediction->bowling_win_probability,
+                ];
+                $output['status'] = 200;
+            }
+        } catch (\Exception $e) {
+            $url = isset($data['url']) ? $data['url'] : null;
+            $error_message = $e->getMessage();
+            $this->logError($url, $error_message);
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $output['status'] = 500;
+        }
+
+        return $output;
+    }
+    public function scorePrediction(array $data) {
+        try {
+            $user_id = isset($data['user_id']) ? intval($data['user_id']) : 0;
+            $batting_team = isset($data['batting_team']) ? trim($data['batting_team']) : null;
+            $bowling_team = isset($data['bowling_team']) ? trim($data['bowling_team']) : null;
+            $venue = isset($data['venue']) ? trim($data['venue']) : null;
+            $current_score = isset($data['current_score']) ? intval($data['current_score']) : 0;
+            $wickets_lost = isset($data['wickets_lost']) ? intval($data['wickets_lost']) : 0;
+            $balls_remaining = isset($data['balls_remaining']) ? intval($data['balls_remaining']) : 0;
+            $last_five = isset($data['last_five']) ? intval($data['last_five']) : 0;
+
+            $response = Http::timeout(60)->post(env('PYTHON_ML_API_URL') . '/api/score/predict', [
+                'batting_team' => $batting_team,
+                'bowling_team' => $bowling_team,
+                'venue' => $venue,
+                'current_score' => $current_score,
+                'wickets_lost' => $wickets_lost,
+                'balls_remaining' => $balls_remaining,
+                'last_five' => $last_five,
+            ]);
+
+            $result = $response->json();
+
+            if (!$response->successful()) {
+                ScorePrediction::create([
+                    'user_id' => $user_id,
+                    'batting_team' => $batting_team,
+                    'bowling_team' => $bowling_team,
+                    'venue' => $venue,
+                    'current_score' => $current_score,
+                    'wickets_lost' => $wickets_lost,
+                    'balls_remaining' => $balls_remaining,
+                    'last_five' => $last_five,
+                    'status' => 0,
+                    'message' => isset($result['error']) ? $result['error'] : 'Python API error',
+                ]);
+
+                $output['success'] = false;
+                $output['message'] = isset($result['error']) ? $result['error'] : 'Prediction failed';
+                $output['data'] = null;
+                $output['status'] = 400;
+            } else {
+                $prediction = ScorePrediction::create([
+                    'user_id' => $user_id,
+                    'batting_team' => $batting_team,
+                    'bowling_team' => $bowling_team,
+                    'venue' => $venue,
+                    'current_score' => $current_score,
+                    'wickets_lost' => $wickets_lost,
+                    'balls_remaining' => $balls_remaining,
+                    'last_five' => $last_five,
+                    'current_run_rate' => isset($result['current_run_rate']) ? $result['current_run_rate'] : null,
+                    'predicted_final_score' => isset($result['predicted_final_score']) ? $result['predicted_final_score'] : null,
+                    'status' => 1,
+                    'message' => 'Success',
+                ]);
+
+                $output['success'] = true;
+                $output['message'] = "Success";
+                $output['data'] = [
+                    'id' => $prediction->id,
+                    'batting_team' => $prediction->batting_team,
+                    'bowling_team' => $prediction->bowling_team,
+                    'venue' => $prediction->venue,
+                    'current_score' => $prediction->current_score,
+                    'wickets_lost' => $prediction->wickets_lost,
+                    'balls_remaining' => $prediction->balls_remaining,
+                    'last_five' => $prediction->last_five,
+                    'current_run_rate' => $prediction->current_run_rate,
+                    'predicted_final_score' => $prediction->predicted_final_score,
                 ];
                 $output['status'] = 200;
             }
