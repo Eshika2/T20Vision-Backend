@@ -11,4 +11,5 @@ interface SettingRepositoryInterface
     public function winPrediction(array $data);
     public function scorePrediction(array $data);
     public function teamRecommendation(array $data);
+    public function predictionHistory(array $data);
 }

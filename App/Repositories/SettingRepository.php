@@ -375,4 +375,114 @@ class SettingRepository implements SettingRepositoryInterface
 
         return $output;
     }
+    public function predictionHistory(array $data) {
+        try {
+            $user_id = isset($data['user_id']) ? intval($data['user_id']) : 0;
+
+            $win_predictions = WinPrediction::where('user_id', $user_id)
+                ->orderBy('id', 'desc')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'id' => intval($item->id),
+                        'type' => 'win',
+                        'batting_team' => $item->batting_team,
+                        'bowling_team' => $item->bowling_team,
+                        'venue' => $item->venue,
+                        'target' => $item->target,
+                        'score' => $item->score,
+                        'overs_completed' => $item->overs_completed,
+                        'wickets_out' => $item->wickets_out,
+                        'batting_win_probability' => $item->batting_win_probability,
+                        'bowling_win_probability' => $item->bowling_win_probability,
+                        'status' => intval($item->status),
+                        'message' => $item->message,
+                        'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    ];
+                })->values();
+
+            $score_predictions = ScorePrediction::where('user_id', $user_id)
+                ->orderBy('id', 'desc')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'id' => intval($item->id),
+                        'type' => 'score',
+                        'batting_team' => $item->batting_team,
+                        'bowling_team' => $item->bowling_team,
+                        'venue' => $item->venue,
+                        'current_score' => intval($item->current_score),
+                        'wickets_lost' => intval($item->wickets_lost),
+                        'balls_remaining' => intval($item->balls_remaining),
+                        'last_five' => intval($item->last_five),
+                        'current_run_rate' => $item->current_run_rate,
+                        'predicted_final_score' => $item->predicted_final_score,
+                        'status' => intval($item->status),
+                        'message' => $item->message,
+                        'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    ];
+                })->values();
+
+            $team_recommendations = TeamRecommendation::with('players')
+                ->where('user_id', $user_id)
+                ->orderBy('id', 'desc')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'id' => intval($item->id),
+                        'type' => 'team',
+                        'my_team' => $item->my_team,
+                        'opponent_team' => $item->opponent_team,
+                        'venue' => $item->venue,
+                        'batters' => intval($item->batters),
+                        'bowlers' => intval($item->bowlers),
+                        'allrounders' => intval($item->allrounders),
+                        'start_year' => intval($item->start_year),
+                        'end_year' => intval($item->end_year),
+                        'available_players' => $item->available_players,
+                        'context_info' => [
+                            'overall_rows' => $item->overall_rows,
+                            'opponent_rows' => $item->opponent_rows,
+                            'venue_rows' => $item->venue_rows,
+                            'exact_rows' => $item->exact_rows,
+                        ],
+                        'recommended_team' => $item->players->map(function ($player) {
+                            return [
+                                'player' => $player->player_name,
+                                'role' => $player->role,
+                                'reward' => $player->reward,
+                            ];
+                        })->values(),
+                        'status' => intval($item->status),
+                        'message' => $item->message,
+                        'created_at' => $item->created_at ? $item->created_at->format('Y-m-d H:i:s') : null,
+                    ];
+                })->values();
+
+            $output['success'] = true;
+            $output['message'] = "Success";
+            $output['data'] = [
+                'win_predictions' => $win_predictions,
+                'score_predictions' => $score_predictions,
+                'team_recommendations' => $team_recommendations,
+                'counts' => [
+                    'win_predictions' => $win_predictions->count(),
+                    'score_predictions' => $score_predictions->count(),
+                    'team_recommendations' => $team_recommendations->count(),
+                ]
+            ];
+            $output['status'] = 200;
+            
+        } catch (\Exception $e) {
+            $url = isset($data['url']) ? $data['url'] : null;
+            $error_message = $e->getMessage();
+            $this->logError($url, $error_message);
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $output['status'] = 500;
+        }
+
+        return $output;
+    }
 }
