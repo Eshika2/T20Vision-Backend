@@ -17,4 +17,6 @@ interface SettingRepositoryInterface
     public function winVenues(array $data);
     public function scoreTeams(array $data);
     public function scoreVenues(array $data);
+    public function teamTeams(array $data);
+    public function teamVenues(array $data);
 }
