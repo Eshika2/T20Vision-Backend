@@ -258,7 +258,7 @@ class SettingRepository implements SettingRepositoryInterface
                 return $output;
             }
 
-            $response = Http::timeout(120)->post(env('PYTHON_ML_API_URL') . '/api/team/recommend', [
+            $response = Http::timeout(240)->post(env('PYTHON_ML_API_URL') . '/api/team/recommend', [
                 'my_team' => $my_team,
                 'opponent_team' => $opponent_team,
                 'venue' => $venue,
@@ -485,4 +485,129 @@ class SettingRepository implements SettingRepositoryInterface
 
         return $output;
     }
+    public function winTeams(array $data) {
+        try {
+            $response = Http::timeout(60)->get(env('PYTHON_ML_API_URL') . '/api/win/teams');
+            $result = $response->json();
+
+            if (!$response->successful()) {
+                $output['success'] = false;
+                $output['message'] = isset($result['error']) ? $result['error'] : 'Failed to fetch win teams';
+                $output['data'] = null;
+                $output['status'] = 400;
+            } else {
+                $output['success'] = true;
+                $output['message'] = "Success";
+                $output['data'] = $result;
+                $output['status'] = 200;
+            }
+        } catch (\Exception $e) {
+            $url = isset($data['url']) ? $data['url'] : null;
+            $this->logError($url, $e->getMessage());
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $output['status'] = 500;
+        }
+
+        return $output;
+    }
+    public function winVenues(array $data) {
+        try {
+            $response = Http::timeout(60)->post(env('PYTHON_ML_API_URL') . '/api/win/venues', [
+                'team1' => isset($data['team1']) ? trim($data['team1']) : null,
+                'team2' => isset($data['team2']) ? trim($data['team2']) : null,
+                'start_year' => isset($data['start_year']) ? intval($data['start_year']) : null,
+                'end_year' => isset($data['end_year']) ? intval($data['end_year']) : null,
+            ]);
+
+            $result = $response->json();
+
+            if (!$response->successful()) {
+                $output['success'] = false;
+                $output['message'] = isset($result['error']) ? $result['error'] : 'Failed to fetch win venues';
+                $output['data'] = null;
+                $output['status'] = 400;
+            } else {
+                $output['success'] = true;
+                $output['message'] = "Success";
+                $output['data'] = $result;
+                $output['status'] = 200;
+            }
+        } catch (\Exception $e) {
+            $url = isset($data['url']) ? $data['url'] : null;
+            $this->logError($url, $e->getMessage());
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $output['status'] = 500;
+        }
+
+        return $output;
+    }
+    public function scoreTeams(array $data) {
+        try {
+            $response = Http::timeout(60)->get(env('PYTHON_ML_API_URL') . '/api/score/teams');
+            $result = $response->json();
+
+            if (!$response->successful()) {
+                $output['success'] = false;
+                $output['message'] = isset($result['error']) ? $result['error'] : 'Failed to fetch score teams';
+                $output['data'] = null;
+                $output['status'] = 400;
+            } else {
+                $output['success'] = true;
+                $output['message'] = "Success";
+                $output['data'] = $result;
+                $output['status'] = 200;
+            }
+        } catch (\Exception $e) {
+            $url = isset($data['url']) ? $data['url'] : null;
+            $this->logError($url, $e->getMessage());
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $output['status'] = 500;
+        }
+
+        return $output;
+    }
+    public function scoreVenues(array $data) {
+        try {
+            $response = Http::timeout(60)->post(env('PYTHON_ML_API_URL') . '/api/score/venues', [
+                'team1' => isset($data['team1']) ? trim($data['team1']) : null,
+                'team2' => isset($data['team2']) ? trim($data['team2']) : null,
+                'start_year' => isset($data['start_year']) ? intval($data['start_year']) : null,
+                'end_year' => isset($data['end_year']) ? intval($data['end_year']) : null,
+            ]);
+
+            $result = $response->json();
+
+            if (!$response->successful()) {
+                $output['success'] = false;
+                $output['message'] = isset($result['error']) ? $result['error'] : 'Failed to fetch score venues';
+                $output['data'] = null;
+                $output['status'] = 400;
+            } else {
+                $output['success'] = true;
+                $output['message'] = "Success";
+                $output['data'] = $result;
+                $output['status'] = 200;
+            }
+        } catch (\Exception $e) {
+            $url = isset($data['url']) ? $data['url'] : null;
+            $this->logError($url, $e->getMessage());
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $output['status'] = 500;
+        }
+
+        return $output;
+    }
+    
 }

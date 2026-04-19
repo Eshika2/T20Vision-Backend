@@ -192,4 +192,120 @@ class SettingController extends Controller
             'output' => $output['data']
         ], $status);
     }
+    public function winTeams(Request $request) {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $data['url'] = $request->url();
+            $data['user_id'] = Auth::user()->id;
+
+            $out_data = $this->settingRepository->winTeams($data);
+
+            $output['success'] = $out_data['success'];
+            $output['message'] = $out_data['message'];
+            $output['data'] = $out_data['data'];
+            $status = $out_data['status'];
+        } catch (\Exception $e) {
+            $url = $request->url();
+            $error_message = $e->getMessage();
+            $this->logError($url, $error_message);
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $status = 500;
+        }
+
+        return response()->json([
+            'success' => $output['success'],
+            'message' => $output['message'],
+            'output' => $output['data']
+        ], $status);
+    }
+    public function winVenues(Request $request) {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $data['url'] = $request->url();
+            $data['user_id'] = Auth::user()->id;
+
+            $out_data = $this->settingRepository->winVenues($data);
+
+            $output['success'] = $out_data['success'];
+            $output['message'] = $out_data['message'];
+            $output['data'] = $out_data['data'];
+            $status = $out_data['status'];
+        } catch (\Exception $e) {
+            $url = $request->url();
+            $error_message = $e->getMessage();
+            $this->logError($url, $error_message);
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $status = 500;
+        }
+
+        return response()->json([
+            'success' => $output['success'],
+            'message' => $output['message'],
+            'output' => $output['data']
+        ], $status);
+    }
+    public function scoreTeams(Request $request) {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $data['url'] = $request->url();
+            $data['user_id'] = Auth::user()->id;
+
+            $out_data = $this->settingRepository->scoreTeams($data);
+
+            $output['success'] = $out_data['success'];
+            $output['message'] = $out_data['message'];
+            $output['data'] = $out_data['data'];
+            $status = $out_data['status'];
+        } catch (\Exception $e) {
+            $url = $request->url();
+            $error_message = $e->getMessage();
+            $this->logError($url, $error_message);
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $status = 500;
+        }
+
+        return response()->json([
+            'success' => $output['success'],
+            'message' => $output['message'],
+            'output' => $output['data']
+        ], $status);
+    }
+    public function scoreVenues(Request $request) {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $data['url'] = $request->url();
+            $data['user_id'] = Auth::user()->id;
+
+            $out_data = $this->settingRepository->scoreVenues($data);
+
+            $output['success'] = $out_data['success'];
+            $output['message'] = $out_data['message'];
+            $output['data'] = $out_data['data'];
+            $status = $out_data['status'];
+        } catch (\Exception $e) {
+            $url = $request->url();
+            $error_message = $e->getMessage();
+            $this->logError($url, $error_message);
+
+            $output['success'] = false;
+            $output['message'] = "Something went wrong, please try again: " . $e->getMessage();
+            $output['data'] = null;
+            $status = 500;
+        }
+
+        return response()->json([
+            'success' => $output['success'],
+            'message' => $output['message'],
+            'output' => $output['data']
+        ], $status);
+    }
 }

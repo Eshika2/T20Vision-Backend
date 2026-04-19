@@ -12,4 +12,9 @@ interface SettingRepositoryInterface
     public function scorePrediction(array $data);
     public function teamRecommendation(array $data);
     public function predictionHistory(array $data);
+
+    public function winTeams(array $data);
+    public function winVenues(array $data);
+    public function scoreTeams(array $data);
+    public function scoreVenues(array $data);
 }
