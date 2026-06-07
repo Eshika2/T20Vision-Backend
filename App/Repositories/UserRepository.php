@@ -88,44 +88,43 @@ class UserRepository implements UserRepositoryInterface
                 $output['data'] = null;
                 $output['status'] = 409;
             } else {
+                if ($user_type_id != 1) {
+                    $user_type_id = 2;
+                }
+                if($password == null || $password == "") {
+                    $password = $email_address;
+                }
                 if ($user_name == null || $user_name == "") {
                     $firstName = explode(" ", trim($full_name))[0];
                     $randomNumber = $this->generateRandomString(4, 3);
                     $user_name = strtolower($firstName . $randomNumber);
-                } else {
-                    if ($user_type_id != 1) {
-                        $user_type_id = 2;
-                    }
-                    if($password == null || $password == "") {
-                        $password = $email_address;
-                    }
-
-                    $date_time = Carbon::now();
-
-                    $new_user = User::create([
-                        'user_type_id' => $user_type_id,
-                        'full_name' => ucwords(strtolower($full_name)),
-                        'user_name' => $user_name,
-                        'email_address' => $email_address,
-                        'age' => $age,
-                        'password' => Hash::make($password),
-                        'normal_password' => Hash::make($password),
-                        'social_password' => Hash::make($email_address),
-                        'push_id' => $push_id,
-                        'os_type' => $os_type,
-                        'is_active' => 1,
-                        'created_at' => $date_time,
-                        'updated_at' => $date_time
-                    ]);
-
-                    $token = JWTAuth::fromUser($new_user);
-
-                    $output['success'] = true;
-                    $output['message'] = "Success";
-                    $output['data']['user_id'] = isset($new_user->id) ? intval($new_user->id) : 0;
-                    $output['data']['token'] = $token;
-                    $output['status'] = 201;
                 }
+
+                $date_time = Carbon::now();
+
+                $new_user = User::create([
+                    'user_type_id' => $user_type_id,
+                    'full_name' => ucwords(strtolower($full_name)),
+                    'user_name' => $user_name,
+                    'email_address' => $email_address,
+                    'age' => $age,
+                    'password' => Hash::make($password),
+                    'normal_password' => Hash::make($password),
+                    'social_password' => Hash::make($email_address),
+                    'push_id' => $push_id,
+                    'os_type' => $os_type,
+                    'is_active' => 1,
+                    'created_at' => $date_time,
+                    'updated_at' => $date_time
+                ]);
+
+                $token = JWTAuth::fromUser($new_user);
+
+                $output['success'] = true;
+                $output['message'] = "Success";
+                $output['data']['user_id'] = isset($new_user->id) ? intval($new_user->id) : 0;
+                $output['data']['token'] = $token;
+                $output['status'] = 201;
             }
         } catch (\Exception $e) {
             $url = isset($data['url']) ? $data['url'] : null;
@@ -361,7 +360,7 @@ class UserRepository implements UserRepositoryInterface
     }
     public function generateOTP($data) {
         try {
-            $email_address = isset($data['email_address']) ? trim($data['email_address']) : null;
+            $email_address = isset($data['email_address']) ? $data['email_address'] : null;
             $should_generate = isset($data['should_generate']) ? intval($data['should_generate']) : 1;
             $date_time = Carbon::now();
             $otp_release_time_data = Setting::where('id', 2)->first();
@@ -371,9 +370,9 @@ class UserRepository implements UserRepositoryInterface
 
             if (!$email_address) {
                 $output['success'] = false;
-                $output['message'] = "Email address is required.";
+                $output['message'] = "User does not exist.";
                 $output['data'] = null;
-                $output['status'] = 400;
+                $output['status'] = 404;
             } else {
                 $email_data = EmailConfirmation::where('email_address', $email_address)
                                 ->where('is_active', 1)
@@ -397,23 +396,24 @@ class UserRepository implements UserRepositoryInterface
                             if($remaining_seconds <= 120) {
                                 $output['success'] = true;
                                 $output['message'] = 'Remaining OTP valid time.';
-                                $output['data'] = [
-                                    'reference' => $email_data->reference,
-                                    'attempt_count' => $attempt_count,
-                                    'attempt_release_time' => $remaining_seconds
-                                ];
+                                $output['data']['reference'] = $email_data->reference;
+                                $output['data']['attempt_count'] = $attempt_count;
+                                $output['data']['attempt_release_time'] = $remaining_seconds;
                                 $output['status'] = 200;
+                                return $output;
                             } else {
                                 $output['success'] = false;
                                 $output['message'] = 'Too many OTP requests. Try again in '.$otp_hold_hours.' hours.';
                                 $output['data'] = null;
                                 $output['status'] = 401;
+                                return $output;
                             }
                         } else {
                             $output['success'] = false;
                             $output['message'] = 'Too many OTP requests. Try again in '.$otp_hold_hours.' hours.';
                             $output['data'] = null;
                             $output['status'] = 401;
+                            return $output;
                         }
                     }
 
@@ -427,12 +427,11 @@ class UserRepository implements UserRepositoryInterface
                         $remaining_seconds = $date_time->diffInSeconds($last_release_time);
                         $output['success'] = true;
                         $output['message'] = 'Remaining OTP valid time.';
-                        $output['data'] = [
-                            'reference' => $email_data->reference,
-                            'attempt_count' => $attempt_count,
-                            'attempt_release_time' => $remaining_seconds
-                        ];
+                        $output['data']['reference'] = $email_data->reference;
+                        $output['data']['attempt_count'] = $attempt_count;
+                        $output['data']['attempt_release_time'] = $remaining_seconds;
                         $output['status'] = 200;
+                        return $output;
                     }
 
                     // Decrease attempt
@@ -447,12 +446,15 @@ class UserRepository implements UserRepositoryInterface
                     $otp = $email_data->otp ?? $this->generateRandomString(6, 3);
                 }
 
+                $user = User::where('email_address', $email_address)->first();
+
                 // Save to DB
                 EmailConfirmation::updateOrCreate(
                 [
                     'email_address' => $email_address
                 ],
                 [
+                    'user_type_id' => $user->user_type_id,
                     'otp' => $otp,
                     'reference' => $reference,
                     'attempt_release_time' => $release_date_time,
@@ -466,18 +468,15 @@ class UserRepository implements UserRepositoryInterface
 
                 Mail::send('emails.otp', ['otp' => $otp], function ($message) use ($email_address) {
                     $message->to($email_address);
-                    $message->subject('Your OTP Code - MemoLink');
+                    $message->subject('Your OTP Code - T20Vision');
                 });
 
                 $output['success'] = true;
                 $output['message'] = 'Validation code sent successfully.';
-                $output['data'] = [
-                    'reference' => $reference,
-                    'attempt_count' => $attempt_count,
-                    'attempt_release_time' => $release_time
-                ];
+                $output['data']['reference'] = $reference;
+                $output['data']['attempt_count'] = $attempt_count;
+                $output['data']['attempt_release_time'] = $release_time;
                 $output['status'] = 200;
-
             }
         } catch (\Exception $e) {
             $url = isset($data['url']) ? $data['url'] : null;
@@ -496,22 +495,22 @@ class UserRepository implements UserRepositoryInterface
             $otp = isset($data['otp']) ? $data['otp'] : null;
             $reference = isset($data['reference']) ? $data['reference'] : null;
 
-            if (!$email_address || !$otp || !$reference) {
+            if ($email_address == null || $otp == null || $reference == null) {
                 $output['success'] = false;
                 $output['message'] = "Wrong user data. Please check & try again.";
                 $output['data'] = null;
-                $status = 401;
+                $output['status'] = 400;
             } else{
                 $email_data = EmailConfirmation::where('reference', $reference)
                                 ->where('email_address', $email_address)
                                 ->where('is_active', 1)
-                                ->orderBy('id', 'DESC')->first();
+                                ->first();
 
-                if (!$email_data) {
+                if (!isset($email_data->id)) {
                     $output['success'] = false;
                     $output['message'] = "Identification Failed.";
                     $output['data'] = null;
-                    $status = 401;
+                    $output['status'] = 404;
                 } else {
                     $now = Carbon::now();
                     $valid_count = intval($email_data->valid_count ?? 0);
@@ -555,7 +554,7 @@ class UserRepository implements UserRepositoryInterface
                                 $output['message'] = "The code you entered doesn't match. Please try again.";
                                 $output['data']['time_error'] = 0;
                                 $output['data']['valid_delay_min'] = 0;
-                                $output['status'] = 401;
+                                $output['status'] = 400;
                             }
                         } else {
                             // OTP expired
@@ -563,7 +562,7 @@ class UserRepository implements UserRepositoryInterface
                             $output['message'] = "Your OTP has expired. Request a new code.";
                             $output['data']['time_error'] = 0;
                             $output['data']['valid_delay_min'] = 0;
-                            $output['status'] = 403;
+                            $output['status'] = 401;
                         }
                     } else {
                         // Delay period
@@ -577,7 +576,7 @@ class UserRepository implements UserRepositoryInterface
                         $output['message'] = "Too many failed attempts. Please try again after {$delay_min} minutes.";
                         $output['data']['time_error'] = intval($delay_min);
                         $output['data']['valid_delay_min'] = intval($delay_min) * 60;
-                        $output['status'] = 403;
+                        $output['status'] = 401;
                     }
                 }
             }

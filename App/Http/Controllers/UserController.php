@@ -220,7 +220,6 @@ class UserController extends Controller
             $validator = Validator::make($request->all(), [
                 'email_address' => 'required|string|email|min:1|max:255',
             ]);
-            $status = 200;
             if ($validator->fails()) {
                 $output['success'] = false;
                 $output['message'] = $validator->errors()->first();
